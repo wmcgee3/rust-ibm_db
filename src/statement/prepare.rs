@@ -1,10 +1,11 @@
 #![allow(bare_trait_objects)]
-use {super::super::ffi, super::super::ColumnDescriptor, super::super::Raii,
-     super::super::Return, super::super::Handle, super::super::Statement,
-     Result, super::super::Prepared, super::super::Allocated,
-     super::super::NoResult, super::super::ResultSetState};
 use odbc_safe::AutocommitMode;
 use std::error::Error;
+use {
+    super::super::ffi, super::super::Allocated, super::super::ColumnDescriptor,
+    super::super::Handle, super::super::NoResult, super::super::Prepared, super::super::Raii,
+    super::super::ResultSetState, super::super::Return, super::super::Statement,
+};
 
 impl<'a, 'b, AC: AutocommitMode> Statement<'a, 'b, Allocated, NoResult, AC> {
     /// Prepares a statement for execution. Executing a prepared statement is faster than directly
@@ -42,11 +43,13 @@ impl<'a, 'b, AC: AutocommitMode> Statement<'a, 'b, Allocated, NoResult, AC> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn prepare(mut self, sql_text: &str) -> Result<Statement<'a, 'b, Prepared, NoResult, AC>, Box<dyn Error>> {
-        self.raii.prepare(sql_text).into_result(&mut self)?;
+    pub fn prepare(
+        mut self,
+        sql_text: &str,
+    ) -> Result<Statement<'a, 'b, Prepared, NoResult, AC>, Box<dyn Error>> {
+        self.raii.prepare(sql_text).into_result(&self)?;
         Ok(Statement::with_raii(self.raii))
     }
-
 
     /// Prepares a statement for execution. Executing a prepared statement is faster than directly
     /// executing an unprepared statement, since it is already compiled into an Access Plan. This
@@ -67,8 +70,11 @@ impl<'a, 'b, AC: AutocommitMode> Statement<'a, 'b, Allocated, NoResult, AC> {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn prepare_bytes(mut self, bytes: &[u8]) -> Result<Statement<'a, 'b, Prepared, NoResult, AC>, Box<dyn Error>> {
-        self.raii.prepare_byte(bytes).into_result(&mut self)?;
+    pub fn prepare_bytes(
+        mut self,
+        bytes: &[u8],
+    ) -> Result<Statement<'a, 'b, Prepared, NoResult, AC>, Box<dyn Error>> {
+        self.raii.prepare_byte(bytes).into_result(&self)?;
         Ok(Statement::with_raii(self.raii))
     }
 }
@@ -90,7 +96,7 @@ impl<'a, 'b, AC: AutocommitMode> Statement<'a, 'b, Prepared, NoResult, AC> {
 
     /// Executes a prepared statement.
     pub fn execute(mut self) -> Result<ResultSetState<'a, 'b, Prepared, AC>, Box<dyn Error>> {
-        if self.raii.execute().into_result(&mut self)? {
+        if self.raii.execute().into_result(&self)? {
             let num_cols = self.raii.num_result_cols().into_result(&self)?;
             if num_cols > 0 {
                 Ok(ResultSetState::Data(Statement::with_raii(self.raii)))
@@ -105,7 +111,9 @@ impl<'a, 'b, AC: AutocommitMode> Statement<'a, 'b, Prepared, NoResult, AC> {
 
 impl<'p> Raii<'p, ffi::Stmt> {
     fn prepare(&mut self, sql_text: &str) -> Return<()> {
-        let bytes = unsafe { crate::environment::DB_ENCODING }.encode(sql_text).0;
+        let bytes = unsafe { crate::environment::DB_ENCODING }
+            .encode(sql_text)
+            .0;
         match unsafe {
             ffi::SQLPrepare(
                 self.handle(),

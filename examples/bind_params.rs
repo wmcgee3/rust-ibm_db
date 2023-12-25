@@ -1,4 +1,4 @@
-use ibm_db::{create_environment_v3, Statement,ResultSetState::Data};
+use ibm_db::{create_environment_v3, ResultSetState::Data, Statement};
 use std::error::Error;
 
 fn main() {
@@ -8,9 +8,7 @@ fn main() {
 fn test_me() -> std::result::Result<(), Box<dyn Error>> {
     let env = create_environment_v3().expect("Can't create ODBC environment");
     let conn = env.connect("dashdb", "admin", "admin")?;
-    let stmt = Statement::with_parent(&conn)?.prepare(
-        "select * from test where COL3 = ?",
-    )?;
+    let stmt = Statement::with_parent(&conn)?.prepare("select * from test where COL3 = ?")?;
 
     let param = "Binit";
 

@@ -2,7 +2,6 @@ use ibm_db::create_environment_v3;
 use std::error::Error;
 
 fn main() {
-
     match print_drivers_and_datasources() {
         Ok(()) => (),
         Err(err) => println!("{}", err),
@@ -10,8 +9,6 @@ fn main() {
 }
 
 fn print_drivers_and_datasources() -> Result<(), Box<dyn Error>> {
-
-
     let mut env = create_environment_v3().map_err(|e| e.unwrap())?;
 
     println!("Driver list:");

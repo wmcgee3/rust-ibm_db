@@ -1,1 +1,5 @@
-target/
+/clidriver
+/linuxx64_odbc_cli.tar.gz
+
+/target
+/Cargo.lock

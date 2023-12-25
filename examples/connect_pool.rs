@@ -1,10 +1,12 @@
 extern crate r2d2;
 
+use ibm_db::{ODBCConnectionManager, ResultSetState::Data, Statement};
 use std::thread;
-use ibm_db::{ODBCConnectionManager,Statement,ResultSetState::Data};
 
 fn main() {
-    let manager = ODBCConnectionManager::new("DSN=dashdb;DATABASE=FOO;hostname=test@test.com;PORT=0000;UID=admin;PWD=admin;");
+    let manager = ODBCConnectionManager::new(
+        "DSN=dashdb;DATABASE=FOO;hostname=test@test.com;PORT=0000;UID=admin;PWD=admin;",
+    );
     let pool = r2d2::Pool::new(manager).unwrap();
 
     let mut children = vec![];
@@ -13,7 +15,7 @@ fn main() {
         let pool_conn = pool.get().unwrap();
         children.push(thread::spawn(move || {
             let conn = pool_conn.raw();
-            let stmt = Statement::with_parent(&conn).unwrap();
+            let stmt = Statement::with_parent(conn).unwrap();
             if let Data(mut stmt) = stmt.exec_direct("select * from dbtest.GLWTACT").unwrap() {
                 while let Some(mut cursor) = stmt.fetch().unwrap() {
                     if let Some(val) = cursor.get_data::<&str>(1).unwrap() {

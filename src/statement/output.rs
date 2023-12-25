@@ -1,6 +1,6 @@
 use super::super::raii::Raii;
-use {super::super::ffi, super::super::Handle, super::super::Return};
 use super::types::OdbcType;
+use {super::super::ffi, super::super::Handle, super::super::Return};
 
 /// Indicates that a type can be retrieved using `Cursor::get_data`
 pub unsafe trait Output<'a>: Sized {
@@ -12,8 +12,8 @@ pub unsafe trait Output<'a>: Sized {
 }
 
 unsafe impl<'a, T> Output<'a> for T
-    where
-        T: OdbcType<'a>,
+where
+    T: OdbcType<'a>,
 {
     fn get_data(
         stmt: &mut Raii<ffi::Stmt>,
@@ -28,10 +28,10 @@ impl<'p> Raii<'p, ffi::Stmt> {
     fn get_data<'a, T>(
         &mut self,
         col_or_param_num: u16,
-        buffer: &'a mut Vec<u8>
+        buffer: &'a mut Vec<u8>,
     ) -> Return<Option<T>>
-        where
-            T: OdbcType<'a>,
+    where
+        T: OdbcType<'a>,
     {
         self.get_partial_data(col_or_param_num, buffer, 0)
     }
@@ -40,10 +40,10 @@ impl<'p> Raii<'p, ffi::Stmt> {
         &mut self,
         col_or_param_num: u16,
         buffer: &'a mut Vec<u8>,
-        start_pos: usize
+        start_pos: usize,
     ) -> Return<Option<T>>
-        where
-            T: OdbcType<'a>,
+    where
+        T: OdbcType<'a>,
     {
         if buffer.len() - start_pos == 0 {
             panic!("buffer length may not be zero");
@@ -53,14 +53,16 @@ impl<'p> Raii<'p, ffi::Stmt> {
         }
         let mut indicator: ffi::SQLLEN = 0;
         // Get buffer length...
-        let result = unsafe { ffi::SQLGetData(
-            self.handle(),
-            col_or_param_num,
-            T::c_data_type(),
-            buffer.as_mut_ptr().offset(start_pos as isize) as ffi::SQLPOINTER,
-            (buffer.len() - start_pos) as ffi::SQLLEN,
-            &mut indicator as *mut ffi::SQLLEN,
-        ) };
+        let result = unsafe {
+            ffi::SQLGetData(
+                self.handle(),
+                col_or_param_num,
+                T::c_data_type(),
+                buffer.as_mut_ptr().add(start_pos) as ffi::SQLPOINTER,
+                (buffer.len() - start_pos) as ffi::SQLLEN,
+                &mut indicator as *mut ffi::SQLLEN,
+            )
+        };
         match result {
             ffi::SQL_SUCCESS => {
                 if indicator == ffi::SQL_NULL_DATA {
@@ -69,11 +71,10 @@ impl<'p> Raii<'p, ffi::Stmt> {
                     //assert!(start_pos + indicator as usize <= buffer.len(), "no more data but indicatior outside of data buffer");
                     if start_pos + indicator as usize >= buffer.len() {
                         Return::Success(None)
-                    }else{
+                    } else {
                         let slice = &buffer[..(start_pos + indicator as usize)];
                         Return::Success(Some(T::convert(slice)))
                     }
-
                 }
             }
             ffi::SQL_SUCCESS_WITH_INFO => {
@@ -88,12 +89,12 @@ impl<'p> Raii<'p, ffi::Stmt> {
                 let null_offset = T::null_bytes_count();
                 if indicator == ffi::SQL_NO_TOTAL {
                     buffer.resize(initial_len * 2, 0);
-                    return self.get_partial_data(col_or_param_num, buffer, initial_len - null_offset);
+                    self.get_partial_data(col_or_param_num, buffer, initial_len - null_offset)
                 } else {
                     // Check if string has been truncated.
                     if indicator >= initial_len as ffi::SQLLEN {
                         buffer.resize(indicator as usize + T::null_bytes_count(), 0);
-                        return self.get_partial_data(col_or_param_num, buffer, initial_len - null_offset);
+                        self.get_partial_data(col_or_param_num, buffer, initial_len - null_offset)
                     } else {
                         let slice = &buffer[..(start_pos + indicator as usize)];
                         // No truncation. Warning may be due to some other issue.

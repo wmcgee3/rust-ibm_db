@@ -1,13 +1,12 @@
-
 extern crate odbc_safe;
-#[macro_use]extern crate prettytable;
+#[macro_use]
+extern crate prettytable;
 
-use prettytable::{Table};
-use ibm_db::{safe::AutocommitOn,Statement,create_environment_v3, Connection};
+use ibm_db::{create_environment_v3, safe::AutocommitOn, Connection, Statement};
+use prettytable::Table;
 use std::error::Error;
 
 fn main() {
-
     match connect() {
         Ok(()) => println!("Success"),
         Err(diag) => println!("Error: {}", diag),
@@ -26,14 +25,13 @@ fn list_tables(conn: &Connection<AutocommitOn>) -> Result<(), Box<dyn Error>> {
     // Create the table
     let mut table = Table::new();
     // Add a row per time
-    table.add_row(row!["CATALOG_NAME","SCHEMA_NAME", "TABLE_NAME","TYPE"]);
+    table.add_row(row!["CATALOG_NAME", "SCHEMA_NAME", "TABLE_NAME", "TYPE"]);
     // Print the table to stdout
     table.printstd();
 
     let mut rs = stmt.tables_str("%", "%", "%", "TABLE")?;
     let cols = rs.num_result_cols()?;
     while let Some(mut cursor) = rs.fetch()? {
-
         for i in 1..(cols + 1) {
             match cursor.get_data::<&str>(i as u16)? {
                 Some(val) => print!(" {},", val),

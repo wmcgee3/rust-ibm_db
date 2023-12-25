@@ -1,14 +1,15 @@
 extern crate odbc_safe;
 
-use ibm_db::{ODBCConnectionManager, Statement, ResultSetState::{Data,NoData}, Connection};
+use ibm_db::{
+    Connection, ODBCConnectionManager,
+    ResultSetState::{Data, NoData},
+    Statement,
+};
 use odbc_safe::AutocommitOn;
-use std::io;
 use std::error::Error;
+use std::io;
 
 fn main() {
-
-
-
     match connect() {
         Ok(()) => println!("Success"),
         Err(diag) => println!("Error: {}", diag),
@@ -16,12 +17,14 @@ fn main() {
 }
 
 fn connect() -> Result<(), Box<dyn Error>> {
-    let manager = ODBCConnectionManager::new("DSN=dashdb;DATABASE=FOO;hostname=test@test.com;PORT=0000;UID=admin;PWD=admin;");
+    let manager = ODBCConnectionManager::new(
+        "DSN=dashdb;DATABASE=FOO;hostname=test@test.com;PORT=0000;UID=admin;PWD=admin;",
+    );
     let pool = r2d2::Pool::new(manager).unwrap();
     let pool = pool.clone();
     let pool_conn = pool.get().unwrap();
     let conn = pool_conn.raw();
-    execute_statement(&conn)
+    execute_statement(conn)
 }
 
 fn execute_statement(conn: &Connection<AutocommitOn>) -> Result<(), Box<dyn Error>> {

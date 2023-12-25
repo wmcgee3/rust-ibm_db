@@ -1,8 +1,11 @@
+use super::types::EncodedValue;
 use super::types::OdbcType;
 use odbc_safe::AutocommitMode;
-use super::types::EncodedValue;
-use {super::super::ffi, super::super::Handle, super::super::Raii, Result, super::super::Return, super::super::Statement};
 use std::error::Error;
+use {
+    super::super::ffi, super::super::Handle, super::super::Raii, super::super::Return,
+    super::super::Statement,
+};
 
 impl<'a, 'b, S, R, AC: AutocommitMode> Statement<'a, 'b, S, R, AC> {
     /// Binds a parameter to a parameter marker in an SQL statement.
@@ -37,12 +40,12 @@ impl<'a, 'b, S, R, AC: AutocommitMode> Statement<'a, 'b, S, R, AC> {
         parameter_index: u16,
         value: &'c T,
     ) -> Result<Statement<'a, 'c, S, R, AC>, Box<dyn Error>>
-        where
-            T: OdbcType<'c>,
-            T: ?Sized,
-            'b: 'c,
+    where
+        T: OdbcType<'c>,
+        T: ?Sized,
+        'b: 'c,
     {
-        let ind = if value.value_ptr() == 0 as *const Self as ffi::SQLPOINTER {
+        let ind = if value.value_ptr() == std::ptr::null::<Self>() as ffi::SQLPOINTER {
             ffi::SQL_NULL_DATA
         } else {
             value.column_size() as ffi::SQLLEN
@@ -71,7 +74,7 @@ impl<'a, 'b, S, R, AC: AutocommitMode> Statement<'a, 'b, S, R, AC> {
     pub fn reset_parameters(mut self) -> Result<Statement<'a, 'a, S, R, AC>, Box<dyn Error>> {
         self.param_ind_buffers.clear();
         self.encoded_values.clear();
-        self.raii.reset_parameters().into_result(&mut self)?;
+        self.raii.reset_parameters().into_result(&self)?;
         Ok(Statement::with_raii(self.raii))
     }
 }
@@ -84,9 +87,9 @@ impl<'p> Raii<'p, ffi::Stmt> {
         str_len_or_ind_ptr: *mut ffi::SQLLEN,
         enc_value: &EncodedValue,
     ) -> Return<()>
-        where
-            T: OdbcType<'c>,
-            T: ?Sized,
+    where
+        T: OdbcType<'c>,
+        T: ?Sized,
     {
         //if encoded value exists, use it.
         let (column_size, value_ptr) = if enc_value.has_value() {

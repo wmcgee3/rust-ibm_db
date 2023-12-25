@@ -1,10 +1,14 @@
-
-use std::io;
-use ibm_db::{safe::AutocommitOn,Statement,create_environment_v3, Connection,ResultSetState::{NoData, Data}};
+use ibm_db::{
+    create_environment_v3,
+    safe::AutocommitOn,
+    Connection,
+    ResultSetState::{Data, NoData},
+    Statement,
+};
 use std::error::Error;
+use std::io;
 
 fn main() {
-
     match connect() {
         Ok(()) => println!("Success"),
         Err(diag) => println!("Error: {}", diag),
@@ -12,7 +16,6 @@ fn main() {
 }
 
 fn connect() -> Result<(), Box<dyn Error>> {
-
     let env = create_environment_v3().map_err(|e| e.unwrap())?;
 
     //Method-1 for Connection
@@ -27,7 +30,7 @@ fn connect() -> Result<(), Box<dyn Error>> {
     execute_statement(&conn)
 }
 
-fn execute_statement<'env>(conn: &Connection<'env, AutocommitOn>) -> Result<(),Box<dyn Error>> {
+fn execute_statement(conn: &Connection<'_, AutocommitOn>) -> Result<(), Box<dyn Error>> {
     let stmt = Statement::with_parent(conn)?;
 
     let mut sql_text = String::new();

@@ -1,10 +1,9 @@
 //! Result types to enabling handling of ODBC Errors
-use super::{DiagnosticRecord, GetDiagRec};
 use super::safe;
-use std;
+use super::{DiagnosticRecord, GetDiagRec};
 
 /// Result type returned by most functions in this crate
-pub type Result<T> = std::result::Result<T, DiagnosticRecord>;
+pub type Result<T> = std::result::Result<T, Box<DiagnosticRecord>>;
 
 #[must_use]
 pub enum Return<T> {
@@ -27,7 +26,9 @@ impl<T> Return<T> {
             }
             Return::Error => {
                 // Return the first record
-                let diag = odbc_object.get_diag_rec(1).unwrap_or_else(DiagnosticRecord::empty);
+                let diag = odbc_object
+                    .get_diag_rec(1)
+                    .unwrap_or_else(DiagnosticRecord::empty);
                 error!("{}", diag);
                 let mut i = 2;
                 // log the rest
@@ -35,17 +36,16 @@ impl<T> Return<T> {
                     error!("{}", diag);
                     i += 1;
                 }
-                Err(diag)
+                Err(diag.into())
             }
         }
     }
 }
 
-
 // temporary glue code to odbc-safe
 pub fn try_into_option<T, E, D>(ret: safe::ReturnOption<T, E>, handle: &D) -> Result<Option<T>>
-    where
-        D: GetDiagRec,
+where
+    D: GetDiagRec,
 {
     match ret {
         safe::ReturnOption::Success(value) => Ok(Some(value)),
@@ -60,7 +60,9 @@ pub fn try_into_option<T, E, D>(ret: safe::ReturnOption<T, E>, handle: &D) -> Re
         safe::ReturnOption::NoData(_) => Ok(None),
         safe::ReturnOption::Error(_) => {
             // Return the first record
-            let diag = handle.get_diag_rec(1).unwrap_or_else(DiagnosticRecord::empty);
+            let diag = handle
+                .get_diag_rec(1)
+                .unwrap_or_else(DiagnosticRecord::empty);
             error!("{}", diag);
             let mut i = 2;
             // log the rest
@@ -68,30 +70,32 @@ pub fn try_into_option<T, E, D>(ret: safe::ReturnOption<T, E>, handle: &D) -> Re
                 error!("{}", diag);
                 i += 1;
             }
-            Err(diag)
+            Err(diag.into())
         }
     }
 }
 
 // temporary glue code to odbc-safe
-pub fn into_result<T, E>(ret: safe::Return<T, E>) -> Result<T>
-    where
-        T: GetDiagRec,
-        E: GetDiagRec,
+pub fn into_result<T, E>(ret: safe::Return<T, E>) -> Result<Box<T>>
+where
+    T: GetDiagRec,
+    E: GetDiagRec,
 {
     match ret {
-        safe::Return::Success(value) => Ok(value),
+        safe::Return::Success(value) => Ok(value.into()),
         safe::Return::Info(value) => {
             let mut i = 1;
             while let Some(diag) = value.get_diag_rec(i) {
                 warn!("{}", diag);
                 i += 1;
             }
-            Ok(value)
+            Ok(value.into())
         }
         safe::Return::Error(value) => {
             // Return the first record
-            let diag = value.get_diag_rec(1).unwrap_or_else(DiagnosticRecord::empty);
+            let diag = value
+                .get_diag_rec(1)
+                .unwrap_or_else(DiagnosticRecord::empty);
             error!("{}", diag);
             let mut i = 2;
             // log the rest
@@ -99,15 +103,15 @@ pub fn into_result<T, E>(ret: safe::Return<T, E>) -> Result<T>
                 error!("{}", diag);
                 i += 1;
             }
-            Err(diag)
+            Err(diag.into())
         }
     }
 }
 
 // temporary glue code to odbc-safe
 pub fn into_result_with<D, T, E>(diag: &D, ret: safe::Return<T, E>) -> Result<T>
-    where
-        D: GetDiagRec,
+where
+    D: GetDiagRec,
 {
     match ret {
         safe::Return::Success(value) => Ok(value),
@@ -129,7 +133,7 @@ pub fn into_result_with<D, T, E>(diag: &D, ret: safe::Return<T, E>) -> Result<T>
                 error!("{}", diag_rec);
                 i += 1;
             }
-            Err(diag_rec)
+            Err(diag_rec.into())
         }
     }
 }

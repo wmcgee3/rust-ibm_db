@@ -1,8 +1,8 @@
 use super::super::ffi;
-use std::slice::from_raw_parts;
-use std::mem::{size_of, transmute};
-use std::ffi::CString;
 use std::borrow::Cow::{Borrowed, Owned};
+use std::ffi::CString;
+use std::mem::{size_of, transmute};
+use std::slice::from_raw_parts;
 
 pub struct EncodedValue {
     pub buf: Option<Vec<u8>>,
@@ -29,7 +29,7 @@ impl EncodedValue {
         if let Some(buf) = &self.buf {
             buf.as_ptr() as *const Self as ffi::SQLPOINTER
         } else {
-            0 as *const Self as ffi::SQLPOINTER
+            std::ptr::null::<Self>() as ffi::SQLPOINTER
         }
     }
 }
@@ -49,7 +49,7 @@ pub unsafe trait OdbcType<'a>: Sized {
     fn encoded_value(&self) -> EncodedValue;
 }
 
-unsafe impl<'a> OdbcType<'a> for &'a[u8] {
+unsafe impl<'a> OdbcType<'a> for &'a [u8] {
     fn sql_data_type() -> ffi::SqlDataType {
         ffi::SQL_EXT_VARBINARY
     }
@@ -99,7 +99,7 @@ unsafe impl<'a> OdbcType<'a> for Vec<u8> {
     }
 }
 
-unsafe impl<'a> OdbcType<'a> for &'a[u16] {
+unsafe impl<'a> OdbcType<'a> for &'a [u16] {
     fn sql_data_type() -> ffi::SqlDataType {
         ffi::SQL_EXT_WVARCHAR
     }
@@ -196,15 +196,24 @@ unsafe impl<'a> OdbcType<'a> for String {
     }
 
     fn convert(buffer: &'a [u8]) -> Self {
-        unsafe { super::super::environment::DB_ENCODING }.decode(buffer).0.to_string()
+        unsafe { super::super::environment::DB_ENCODING }
+            .decode(buffer)
+            .0
+            .to_string()
     }
 
     fn column_size(&self) -> ffi::SQLULEN {
-        unsafe { super::super::environment::DB_ENCODING }.encode(&self).0.len() as ffi::SQLULEN
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .len() as ffi::SQLULEN
     }
 
     fn value_ptr(&self) -> ffi::SQLPOINTER {
-        unsafe { super::super::environment::DB_ENCODING }.encode(&self).0.as_ptr() as *const Self as ffi::SQLPOINTER
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .as_ptr() as *const Self as ffi::SQLPOINTER
     }
 
     fn null_bytes_count() -> usize {
@@ -212,7 +221,12 @@ unsafe impl<'a> OdbcType<'a> for String {
     }
 
     fn encoded_value(&self) -> EncodedValue {
-        EncodedValue::new(Some(unsafe { super::super::environment::DB_ENCODING }.encode(&self).0.to_vec()))
+        EncodedValue::new(Some(
+            unsafe { super::super::environment::DB_ENCODING }
+                .encode(self)
+                .0
+                .to_vec(),
+        ))
     }
 }
 
@@ -225,19 +239,29 @@ unsafe impl<'a> OdbcType<'a> for &'a str {
     }
 
     fn convert(buffer: &'a [u8]) -> Self {
-        let cow = unsafe { super::super::environment::DB_ENCODING }.decode(buffer).0;
+        let cow = unsafe { super::super::environment::DB_ENCODING }
+            .decode(buffer)
+            .0;
         match cow {
             Borrowed(strref) => strref,
-            Owned(_string) => panic!("Couldn't convert data to `&str`. Try `String` or `Cow<str>` instead."),
+            Owned(_string) => {
+                panic!("Couldn't convert data to `&str`. Try `String` or `Cow<str>` instead.")
+            }
         }
     }
 
     fn column_size(&self) -> ffi::SQLULEN {
-        unsafe { super::super::environment::DB_ENCODING }.encode(self).0.len() as ffi::SQLULEN
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .len() as ffi::SQLULEN
     }
 
     fn value_ptr(&self) -> ffi::SQLPOINTER {
-        unsafe { super::super::environment::DB_ENCODING }.encode(self).0.as_ptr() as *const Self as ffi::SQLPOINTER
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .as_ptr() as *const Self as ffi::SQLPOINTER
     }
 
     fn null_bytes_count() -> usize {
@@ -245,7 +269,12 @@ unsafe impl<'a> OdbcType<'a> for &'a str {
     }
 
     fn encoded_value(&self) -> EncodedValue {
-        EncodedValue::new(Some(unsafe { super::super::environment::DB_ENCODING }.encode(&self).0.to_vec()))
+        EncodedValue::new(Some(
+            unsafe { super::super::environment::DB_ENCODING }
+                .encode(self)
+                .0
+                .to_vec(),
+        ))
     }
 }
 
@@ -258,15 +287,21 @@ unsafe impl<'a> OdbcType<'a> for ::std::borrow::Cow<'a, str> {
     }
 
     fn convert(buffer: &'a [u8]) -> Self {
-        unsafe {super::super::environment::DB_ENCODING.decode(buffer).0}
+        unsafe { super::super::environment::DB_ENCODING.decode(buffer).0 }
     }
 
     fn column_size(&self) -> ffi::SQLULEN {
-        unsafe { super::super::environment::DB_ENCODING }.encode(self).0.len() as ffi::SQLULEN
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .len() as ffi::SQLULEN
     }
 
     fn value_ptr(&self) -> ffi::SQLPOINTER {
-        unsafe { super::super::environment::DB_ENCODING }.encode(self).0.as_ptr() as *const Self as ffi::SQLPOINTER
+        unsafe { super::super::environment::DB_ENCODING }
+            .encode(self)
+            .0
+            .as_ptr() as *const Self as ffi::SQLPOINTER
     }
 
     fn null_bytes_count() -> usize {
@@ -274,13 +309,18 @@ unsafe impl<'a> OdbcType<'a> for ::std::borrow::Cow<'a, str> {
     }
 
     fn encoded_value(&self) -> EncodedValue {
-        EncodedValue::new(Some(unsafe { super::super::environment::DB_ENCODING }.encode(self).0.to_vec()))
+        EncodedValue::new(Some(
+            unsafe { super::super::environment::DB_ENCODING }
+                .encode(self)
+                .0
+                .to_vec(),
+        ))
     }
 }
 
 fn convert_primitive<T>(buf: &[u8]) -> T
-    where
-        T: Copy,
+where
+    T: Copy,
 {
     unsafe { from_raw_parts(buf.as_ptr() as *const T, 1)[0] }
 }
@@ -671,7 +711,10 @@ unsafe impl<'a> OdbcType<'a> for SqlSsTime2 {
     }
 }
 
-unsafe impl<'a, T> OdbcType<'a> for Option<T> where T: OdbcType<'a> {
+unsafe impl<'a, T> OdbcType<'a> for Option<T>
+where
+    T: OdbcType<'a>,
+{
     fn sql_data_type() -> ffi::SqlDataType {
         T::sql_data_type()
     }
@@ -695,7 +738,7 @@ unsafe impl<'a, T> OdbcType<'a> for Option<T> where T: OdbcType<'a> {
         if let Some(t) = self {
             t.value_ptr()
         } else {
-            0 as *const Self as ffi::SQLPOINTER
+            std::ptr::null::<Self>() as ffi::SQLPOINTER
         }
     }
 
@@ -707,7 +750,6 @@ unsafe impl<'a, T> OdbcType<'a> for Option<T> where T: OdbcType<'a> {
         EncodedValue::new(None)
     }
 }
-
 
 /*mod test {
     // use environment::create_environment_v3_with_os_db_encoding;

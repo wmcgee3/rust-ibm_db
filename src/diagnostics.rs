@@ -1,7 +1,7 @@
 use super::{ffi, safe};
-use std::{fmt, cmp};
-use std::ffi::CStr;
 use std::error::Error;
+use std::ffi::CStr;
+use std::{cmp, fmt};
 
 pub const MAX_DIAGNOSTIC_MESSAGE_SIZE: usize = 1024;
 
@@ -38,7 +38,7 @@ impl DiagnosticRecord {
     pub fn empty() -> DiagnosticRecord {
         let message = b"No SQL-driver error information available.";
         let mut rec = DiagnosticRecord {
-            state: b"HY000\0".clone(),
+            state: *b"HY000\0",
             message: [0u8; MAX_DIAGNOSTIC_MESSAGE_SIZE],
             native_error: -1,
             message_length: message.len() as ffi::SQLSMALLINT,
@@ -74,7 +74,7 @@ impl Error for DiagnosticRecord {
     fn description(&self) -> &str {
         &self.message_string
     }
-    fn cause(&self) -> Option<& dyn Error> {
+    fn cause(&self) -> Option<&dyn Error> {
         None
     }
 }
@@ -90,8 +90,8 @@ pub trait GetDiagRec {
 }
 
 impl<D> GetDiagRec for D
-    where
-        D: safe::Diagnostics,
+where
+    D: safe::Diagnostics,
 {
     fn get_diag_rec(&self, record_number: i16) -> Option<DiagnosticRecord> {
         use safe::ReturnOption::*;
@@ -102,7 +102,7 @@ impl<D> GetDiagRec for D
                 let mut message_length = cmp::min(result.text_length, MAX_DIAGNOSTIC_MESSAGE_SIZE as ffi::SQLSMALLINT - 1);
                 // Some drivers pad the message with null-chars (which is still a valid C string, but not a valid Rust string).
                 while message_length > 0 && message[(message_length - 1) as usize] == 0 {
-                    message_length = message_length - 1;
+                    message_length -= 1;
                 }
                 Some(DiagnosticRecord {
                     state: result.state,
@@ -139,12 +139,15 @@ mod test {
 
     #[test]
     fn formatting() {
-
         // build diagnostic record
         let message = b"[Microsoft][ODBC Driver Manager] Function sequence error\0";
         let mut rec = DiagnosticRecord::new();
-        rec.state = b"HY010\0".clone();
-        rec.message_string = CStr::from_bytes_with_nul(message).unwrap().to_str().unwrap().to_owned();
+        rec.state = *b"HY010\0";
+        rec.message_string = CStr::from_bytes_with_nul(message)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_owned();
         rec.message_length = 56;
         for i in 0..(rec.message_length as usize) {
             rec.message[i] = message[i];
